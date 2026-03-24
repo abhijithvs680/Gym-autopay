@@ -1,0 +1,15 @@
+node_modules
+dist
+dev-dist
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+.vite
+*.tsbuildinfo
+coverage
+.idea
+.vscode
+docker-compose*.yml
