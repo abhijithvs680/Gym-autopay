@@ -14,7 +14,7 @@ function getInitial(): Theme {
     const stored = localStorage.getItem("gympay-theme");
     if (stored === "dark" || stored === "light") return stored;
   } catch { /* SSR / private mode */ }
-  return "dark";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

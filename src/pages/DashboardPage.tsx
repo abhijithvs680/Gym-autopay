@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import GympayLogo from "@/components/branding/GympayLogo";
 import { useAuth } from "@/context/AuthContext";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { btnPrimary } from "@/lib/buttonStyles";
+
+const CURRENT_MONTH = new Date().toLocaleString("default", { month: "long", year: "numeric" });
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -19,22 +22,14 @@ export default function DashboardPage() {
   const {
     totalMembers, paymentReceived, failedCount,
     paidCount, overdueCount, pendingCount,
-    upcoming, revenueByMonth,
+    upcoming,
   } = stats;
 
   return (
     <>
       {/* Header — only on mobile */}
       <div className="sticky top-0 z-10 bg-bg px-5 pt-safe pb-3 lg:hidden">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <GympayLogo size="sm" />
-            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-bg bg-lime" />
-          </div>
-          <h2 className="text-base font-bold tracking-tight text-ink">
-            {user?.business_name ?? "My Gym"}
-          </h2>
-        </div>
+        <GympayLogo size="sm" />
       </div>
 
       {/* Desktop header */}
@@ -46,7 +41,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="px-5 pt-4 lg:p-6">
-        {/* Stat cards — single flat card with 3 stats separated by dividers */}
+        {/* Stat cards with current month title */}
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-ink-muted">
+          {CURRENT_MONTH}
+        </p>
         <div className="flex items-stretch rounded-3xl bg-elevated shadow-level1">
           <StatCell
             icon="group"
@@ -70,24 +68,18 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Charts */}
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="flex flex-col justify-center rounded-3xl bg-elevated p-4 shadow-level1">
-            <p className="text-center text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">
-              Member Status
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
+        {/* Member Status — full-width donut chart */}
+        <div className="mt-4 rounded-3xl bg-elevated p-5 shadow-level1">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.15em] text-ink-muted">
+            Member Status
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <DonutChart paid={paidCount} overdue={overdueCount} pending={pendingCount} />
+            <div className="flex flex-col gap-2.5">
               <Legend color="bg-lime" label="Paid" count={paidCount} />
               <Legend color="bg-status-overdue" label="Overdue" count={overdueCount} />
               <Legend color="bg-status-pending" label="Pending" count={pendingCount} />
             </div>
-          </div>
-
-          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-grad-start to-blue-grad-end p-4 shadow-level1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/60">
-              Monthly Revenue
-            </p>
-            <RevenueBarChart data={revenueByMonth} />
           </div>
         </div>
 
@@ -178,55 +170,96 @@ function StatCell({
 
 function Legend({ color, label, count }: { color: string; label: string; count: number }) {
   return (
-    <div className="flex items-center gap-2 rounded-full bg-surface px-3 py-1">
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />
+    <div className="flex items-center gap-2 rounded-full bg-surface px-3 py-1.5">
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${color}`} />
       <span className="text-xs font-medium text-ink-secondary">{label}</span>
       <span className="ml-auto text-xs font-bold tabular-nums text-ink">{count}</span>
     </div>
   );
 }
 
-function formatCompact(n: number) {
-  if (n >= 100_000) return `₹${(n / 100_000).toFixed(1)}L`;
-  if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}K`;
-  return `₹${n}`;
-}
+function DonutChart({ paid, overdue, pending }: { paid: number; overdue: number; pending: number }) {
+  const [animated, setAnimated] = useState(false);
+  const ref = useRef<SVGSVGElement>(null);
 
-function RevenueBarChart({ data }: { data: { label: string; value: number }[] }) {
-  const maxV = Math.max(...data.map((d) => d.value), 1);
-  const barMaxH = 64;
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => setAnimated(true));
+    return () => cancelAnimationFrame(timer);
+  }, []);
 
-  if (data.length === 0) {
-    return <p className="mt-2 text-center text-xs text-white/50">No revenue data yet</p>;
+  const total = paid + overdue + pending;
+  if (total === 0) {
+    return (
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="var(--color-border)" strokeWidth="14" />
+      </svg>
+    );
   }
 
-  const visibleData = data.length > 4 ? data.slice(-4) : data;
-  const lastIdx = visibleData.length - 1;
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+
+  const paidFrac = paid / total;
+  const overdueFrac = overdue / total;
+  const pendingFrac = pending / total;
+
+  const gap = total > 1 ? 0.01 : 0;
+  const segments = [
+    { frac: paidFrac, color: "var(--color-lime)" },
+    { frac: overdueFrac, color: "var(--color-status-overdue)" },
+    { frac: pendingFrac, color: "var(--color-status-pending)" },
+  ].filter((s) => s.frac > 0);
+
+  const totalGap = gap * segments.length;
+  const scale = segments.length > 1 ? 1 - totalGap : 1;
+
+  let offset = 0;
 
   return (
-    <div className="mt-2 flex items-end justify-around gap-1">
-      {visibleData.map((d, idx) => {
-        const h = Math.max(Math.round((d.value / maxV) * barMaxH), 6);
-        const parts = d.label.split(" ");
-        const month = parts[0] ?? d.label;
-        const year = parts[1] ?? "";
-        const isCurrent = idx === lastIdx;
+    <svg ref={ref} width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
+      {segments.map((seg, i) => {
+        const segLen = seg.frac * scale * circumference;
+        const dashArray = `${animated ? segLen : 0} ${circumference}`;
+        const dashOffset = -offset;
+        offset += segLen + gap * circumference;
         return (
-          <div key={d.label} className="flex flex-col items-center gap-0.5">
-            <span className="whitespace-nowrap text-[7px] font-bold tabular-nums text-white/80">
-              {formatCompact(d.value)}
-            </span>
-            <div
-              className={`w-4 rounded-t-lg rounded-b bg-white/85 ${
-                isCurrent ? "ring-1 ring-lime" : ""
-              }`}
-              style={{ height: h }}
-            />
-            <span className="text-[8px] font-bold uppercase leading-tight text-white/50">{month}</span>
-            <span className="-mt-0.5 text-[6px] font-medium text-white/30">{year}</span>
-          </div>
+          <circle
+            key={i}
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={dashArray}
+            strokeDashoffset={dashOffset}
+            transform="rotate(-90 60 60)"
+            style={{
+              transition: "stroke-dasharray 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+              transitionDelay: `${i * 150}ms`,
+            }}
+          />
         );
       })}
-    </div>
+      <text
+        x="60"
+        y="56"
+        textAnchor="middle"
+        className="fill-ink text-lg font-extrabold"
+        style={{ fontSize: 22, fontWeight: 800 }}
+      >
+        {total}
+      </text>
+      <text
+        x="60"
+        y="72"
+        textAnchor="middle"
+        className="fill-ink-muted"
+        style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}
+      >
+        Total
+      </text>
+    </svg>
   );
 }

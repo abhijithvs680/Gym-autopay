@@ -1,6 +1,5 @@
 import { NavLink } from "react-router-dom";
 import GympayLogo from "@/components/branding/GympayLogo";
-import { useAuth } from "@/context/AuthContext";
 
 const tabs = [
   { to: "/dashboard", icon: "home", label: "Home" },
@@ -9,15 +8,10 @@ const tabs = [
 ] as const;
 
 export default function SideNav() {
-  const { user } = useAuth();
-
   return (
     <aside className="fixed left-0 top-0 hidden h-dvh w-56 flex-col border-r border-border bg-surface lg:flex">
-      <div className="flex h-14 items-center gap-3 border-b border-border px-5">
+      <div className="flex h-14 items-center border-b border-border px-5">
         <GympayLogo size="sm" />
-        <span className="min-w-0 truncate text-sm font-bold tracking-tight text-ink">
-          {user?.business_name ?? "Gym Autopay"}
-        </span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3 pt-4">
