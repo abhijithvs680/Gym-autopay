@@ -3,6 +3,7 @@ import GympayLogo from "@/components/branding/GympayLogo";
 
 const tabs = [
   { to: "/dashboard", icon: "home", label: "Home" },
+  { to: "/payments", icon: "receipt_long", label: "Payment History" },
   { to: "/members", icon: "group", label: "Members" },
   { to: "/settings", icon: "settings", label: "Settings" },
 ] as const;

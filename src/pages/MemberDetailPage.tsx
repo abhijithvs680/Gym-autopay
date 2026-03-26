@@ -47,6 +47,52 @@ export default function MemberDetailPage() {
   const monthOptions = useMemo(() => generateMonthOptions(), []);
   const paidMonths = useMemo(() => new Set(payments.filter((p) => p.status === "paid").map((p) => p.month)), [payments]);
 
+  async function updateMemberStatusFromPayments(
+    justInserted?: { status: string }[],
+  ) {
+    const now = new Date();
+    const currentMonth = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+
+    const allPayments = justInserted
+      ? [...payments, ...(justInserted as typeof payments)]
+      : payments;
+
+    const currentMonthPayments = allPayments.filter((p) => p.month === currentMonth);
+    const hasPaidCurrent = currentMonthPayments.some((p) => p.status === "paid");
+
+    if (justInserted) {
+      const anyPaid = justInserted.some((r) => r.status === "paid");
+      if (anyPaid || hasPaidCurrent) {
+        await supabase
+          .from("members")
+          .update({ status: "paid", status_label: `Paid for ${currentMonth}` })
+          .eq("id", id);
+        return;
+      }
+    }
+
+    if (hasPaidCurrent) {
+      await supabase
+        .from("members")
+        .update({ status: "paid", status_label: `Paid for ${currentMonth}` })
+        .eq("id", id);
+    } else {
+      const { data: freshPayments } = await supabase
+        .from("payments")
+        .select("status, month")
+        .eq("member_id", id!);
+      const paid = (freshPayments ?? []).some(
+        (p) => p.month === currentMonth && p.status === "paid",
+      );
+      if (paid) {
+        await supabase
+          .from("members")
+          .update({ status: "paid", status_label: `Paid for ${currentMonth}` })
+          .eq("id", id);
+      }
+    }
+  }
+
   if (memberLoading || paymentsLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
@@ -82,6 +128,7 @@ export default function MemberDetailPage() {
       amount: parseFloat(markAmount),
       date: dateStr,
     }).eq("id", markingId);
+    await updateMemberStatusFromPayments();
     setMarkingId(null);
     setMarkAmount("");
     setSaving(false);
@@ -133,6 +180,7 @@ export default function MemberDetailPage() {
     }
 
     await supabase.from("payments").insert(rows);
+    await updateMemberStatusFromPayments(rows);
     setShowRecord(false);
     setSelectedMonths(new Set());
     setRecordAmount("");

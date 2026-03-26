@@ -11,6 +11,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import ApiConfigPage from "@/pages/settings/ApiConfigPage";
 import ExportDataPage from "@/pages/settings/ExportDataPage";
 import AccountPage from "@/pages/settings/AccountPage";
+import PaymentHistoryPage from "@/pages/PaymentHistoryPage";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/payments" element={<PaymentHistoryPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/members/new" element={<AddMemberPage />} />
           <Route path="/members/:id" element={<MemberDetailPage />} />

@@ -5,12 +5,15 @@
 
 -- 1. USERS (profile / settings for app users — gym owners)
 CREATE TABLE IF NOT EXISTS public.users (
-  id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email       TEXT NOT NULL,
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email         TEXT NOT NULL,
   business_name TEXT DEFAULT 'My Gym',
-  api_key     TEXT,
-  secret_key  TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  phone         TEXT,
+  business_type TEXT NOT NULL DEFAULT 'gym'
+                  CHECK (business_type IN ('gym','yoga','dance')),
+  api_key       TEXT,
+  secret_key    TEXT,
+  created_at    TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -100,11 +103,13 @@ CREATE POLICY "Tenant can delete own payments"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, business_name)
+  INSERT INTO public.users (id, email, business_name, phone, business_type)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'business_name', 'My Gym')
+    COALESCE(NEW.raw_user_meta_data->>'business_name', 'My Gym'),
+    NEW.raw_user_meta_data->>'phone',
+    COALESCE(NEW.raw_user_meta_data->>'business_type', 'gym')
   );
   RETURN NEW;
 END;

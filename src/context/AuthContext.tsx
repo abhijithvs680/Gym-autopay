@@ -8,7 +8,7 @@ interface AuthContextType {
   loading: boolean;
   user: UserProfile | null;
   login: (email: string, password: string) => Promise<string | null>;
-  register: (email: string, password: string, businessName: string) => Promise<string | null>;
+  register: (email: string, password: string, businessName: string, phone: string, businessType: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -59,11 +59,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? error.message : null;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, businessName: string): Promise<string | null> => {
+  const register = useCallback(async (email: string, password: string, businessName: string, phone: string, businessType: string): Promise<string | null> => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { business_name: businessName || "My Gym" } },
+      options: {
+        data: {
+          business_name: businessName || "My Gym",
+          phone: phone || null,
+          business_type: businessType || "gym",
+        },
+      },
     });
     return error ? error.message : null;
   }, []);
